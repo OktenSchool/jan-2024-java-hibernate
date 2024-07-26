@@ -1,48 +1,93 @@
 package org.okten;
 
-import org.hibernate.HibernateException;
-import org.hibernate.Session;
-import org.hibernate.SessionFactory;
-import org.hibernate.Transaction;
-import org.hibernate.boot.Metadata;
-import org.hibernate.boot.MetadataSources;
-import org.hibernate.boot.registry.StandardServiceRegistry;
-import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.EntityTransaction;
+import jakarta.persistence.Persistence;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.function.Consumer;
 
 public class Main {
 
+    private static EntityManagerFactory emf;
+
+    // CRUD - create (insert), read (select), update, delete
+
     public static void main(String[] args) {
-        try (StandardServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
-                .configure()
-                .build()) {
-            Metadata metadata = new MetadataSources(serviceRegistry)
-                    .addAnnotatedClass(Product.class)
-                    .getMetadataBuilder()
-                    .build();
+        emf = Persistence.createEntityManagerFactory("xxx-database");
 
-            try (SessionFactory sessionFactory = metadata.getSessionFactoryBuilder().build();
-                 Session session = sessionFactory.openSession()) {
+        execute(em -> {
+            Product product = new Product();
+            product.setName("test");
+            product.setPrice(1.99);
+            em.persist(product);
+        });
 
-                Transaction transaction = session.beginTransaction();
+        execute(em -> {
+            Product product = em.find(Product.class, 1L);
+            product.setName("test2");
 
-                Product product = new Product();
-                product.setName("Laptop1");
-                product.setPrice(3999.99);
-                session.persist(product); // INSERT
+            em.detach(product);
+            product.setPrice(9.98);
+        });
 
-                product.setPrice(3499.99);
-                session.merge(product); // UPDATE
+        execute(em -> {
+            Product product = em.find(Product.class, 1L);
+            em.remove(product);
+        });
 
-                session.detach(product);
-                product.setPrice(2399D);
-                session.remove(product); // DELETE
+        execute(em -> {
+            Customer customer = new Customer();
+            customer.setName("test customer");
 
-                session.persist(product); // INSERT
+            Address address = new Address();
+            address.setCity("Kyiv");
+            address.setStreet("Volodymyrska 132121");
 
-                transaction.commit();
-            } catch (HibernateException e) {
-                throw new RuntimeException(e);
-            }
+            customer.setAddress(address);
+
+            Order order1 = new Order();
+            order1.setOrderDate(OffsetDateTime.now());
+            order1.setCustomer(customer);
+
+            Order order2 = new Order();
+            order2.setOrderDate(OffsetDateTime.now().minusDays(2));
+            order2.setCustomer(customer);
+
+            customer.setOrders(List.of(order1, order2));
+
+            em.persist(customer);
+        });
+
+        execute(em -> {
+            Product product = new Product();
+            product.setName("test product 2");
+            product.setPrice(123.99);
+
+            Tag tag1 = new Tag();
+            tag1.setName("tag1");
+
+            Tag tag2 = new Tag();
+            tag2.setName("tag2");
+
+            product.setTags(List.of(tag1, tag2));
+
+            em.persist(tag1);
+            em.persist(tag2);
+            em.persist(product);
+        });
+    }
+
+    private static void execute(Consumer<EntityManager> action) {
+        try (EntityManager em = emf.createEntityManager()) {
+            EntityTransaction transaction = em.getTransaction();
+            transaction.begin();
+
+            action.accept(em);
+
+            transaction.commit();
         }
     }
 }

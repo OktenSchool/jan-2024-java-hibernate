@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.okten</groupId>
-    <artifactId>order-service</artifactId>
+    <artifactId>jan-2024-java-hibernate</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
